@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>待办事项清单</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="controls">
+            <button id="show-todo-btn" class="control-btn active">待办事项</button>
+            <button id="show-completed-btn" class="control-btn">已完成事项</button>
+            <button id="toggle-orientation-btn" class="control-btn">切换横向/纵向</button>
+            <button id="export-pdf-btn" class="control-btn">导出 PDF</button>
+            <button id="export-png-btn" class="control-btn">导出 PNG</button>
+        </div>
+    </div>
+
+    <div id="page-container" class="page-container">
+        <div id="todo-page" class="a4-page portrait">
+            <div class="page-header">
+                <h2>待办事项</h2>
+            </div>
+            <div id="todo-list" class="list-container">
+                </div>
+        </div>
+
+        <div id="completed-page" class="a4-page portrait hidden">
+            <div class="page-header">
+                <h2>已完成事项</h2>
+            </div>
+            <div id="completed-list" class="list-container">
+                </div>
+        </div>
+    </div>
+
+    <div id="export-page-container" class="export-page-container">
+        <div id="export-page" class="a4-page portrait">
+            <div class="page-header">
+                <h2 id="export-page-title"></h2>
+            </div>
+            <div id="export-todo-list" class="list-container"></div>
+            <div id="export-completed-list" class="list-container"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
