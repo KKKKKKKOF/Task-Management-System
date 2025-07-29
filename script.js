@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </select>
                 <input type="date" class="date-input" value="${item.date || ''}" ${isExport ? 'disabled' : ''}>
             </div>
+            ${!isExport ? '<button class="delete-btn">×</button>' : ''}
         `;
         return listItem;
     };
@@ -118,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="date-display">${item.date || ''}</span>
                 </div>
                 <span class="completion-time">${item.timestamp}</span>
+                ${!isExport ? '<button class="delete-btn">×</button>' : ''}
             `;
             container.appendChild(listItem);
         });
@@ -176,6 +178,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 todoItems[index].date = target.value;
             }
             saveItems();
+        }
+    };
+
+    // 添加删除功能
+    const handleDeleteClick = (e) => {
+        const deleteBtn = e.target.closest('.delete-btn');
+        if (!deleteBtn) return;
+        
+        const listItem = deleteBtn.closest('.list-item');
+        const index = parseInt(listItem.dataset.index);
+        
+        if (isTodoView) {
+            if (index !== undefined && !isNaN(index)) {
+                todoItems.splice(index, 1);
+                saveItems();
+                renderTodoItems(todoList, todoItems);
+            }
+        } else {
+            if (index !== undefined && !isNaN(index)) {
+                completedItems.splice(index, 1);
+                saveItems();
+                renderCompletedItems(completedList, completedItems);
+            }
         }
     };
 
@@ -300,9 +325,15 @@ document.addEventListener('DOMContentLoaded', () => {
     todoList.addEventListener('click', (e) => {
         const target = e.target;
         if (target.closest('.checkbox-box')) {
-            handleCheckboxClick(e);
+            // 只有当点击的项目有索引时才处理复选框点击
+            const listItem = target.closest('.list-item');
+            if (listItem.dataset.index !== undefined) {
+                handleCheckboxClick(e);
+            }
         } else if (target.classList.contains('list-item-text')) {
             return;
+        } else if (target.classList.contains('delete-btn')) {
+            handleDeleteClick(e);
         }
     });
 
@@ -329,7 +360,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    completedList.addEventListener('click', handleCheckboxClick);
+    completedList.addEventListener('click', (e) => {
+        // 只有点击复选框时才将项目移回待办列表
+        if (e.target.closest('.checkbox-box')) {
+            handleCheckboxClick(e);
+        } else if (e.target.classList.contains('delete-btn')) {
+            handleDeleteClick(e);
+        }
+    });
     todoList.addEventListener('blur', handleTextChange, true);
     todoList.addEventListener('change', handleMetaChange, true);
     
