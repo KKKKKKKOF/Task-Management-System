@@ -1,53 +1,1394 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>待办事项清单</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>待办事项</title>
+  <style>
+    :root{
+      /* 高级中文 UI 字体栈（可按需替换顺序） */
+      --ff-ui: "HarmonyOS Sans SC","SF Pro Display","SF Pro Text","PingFang SC","MiSans","OPPO Sans",
+               "Source Han Sans SC","Noto Sans SC","Segoe UI",system-ui,Arial,sans-serif;
+      --ff-body: var(--ff-ui);
+
+      --paper: #ffffff;
+      --paper-ink: #0f172a;      /* 正文字色 */
+      --muted-ink: #475569;      /* 次级文字 */
+      --brand-1: #6366f1;
+      --brand-2: #22c55e;
+      --accent: #0ea5e9;
+      --danger: #ef4444;
+      --line: #cbd5e1;
+      --tick-border: #334155;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --shadow: 0 10px 30px rgba(0,0,0,.06);
+      --radius: 14px;
+
+      --gap-mm: 5mm;            /* 条目间隔 ≥ 5mm */
+      --tick-size-mm: 7mm;      /* 勾选方框 7mm */
+      --line-thin-mm: .3mm;     /* 格式线 */
+
+      color-scheme: light dark; /* 让原生控件跟随深浅色 */
+    }
+    [data-theme="dark"]{
+      --paper: #111827;
+      --paper-ink: #e5e7eb;
+      --muted-ink: #9ca3af;
+      --brand-1: #8b5cf6;
+      --brand-2: #10b981;
+      --accent: #38bdf8;
+      --danger: #f87171;
+      --line: #334155;
+      --tick-border: #64748b;
+      --bg: #0b1220;
+      --card: #0b1324;
+      --shadow: 0 12px 32px rgba(0,0,0,.35);
+    }
+
+    /* 全局字体与排版 */
+    *{ box-sizing: border-box; font-family: var(--ff-body); }
+    input,button,select,textarea{ font: inherit; color: var(--paper-ink); caret-color: var(--accent); }
+    ::placeholder{ color: var(--muted-ink); opacity:.9; }
+
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      background: radial-gradient(1200px 600px at 10% 0%, rgba(99,102,241,.15), transparent 50%),
+                  radial-gradient(900px 600px at 90% 0%, rgba(56,189,248,.12), transparent 50%),
+                  var(--bg);
+      color: var(--paper-ink);
+      font-size: 16px; line-height: 1.45;
+      transition: background-color .25s ease, color .25s ease;
+      -webkit-font-smoothing: antialiased;
+      font-synthesis-weight: none;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* 顶部工具条 */
+    .topbar{ position: sticky; top:0; z-index: 30;
+      backdrop-filter: saturate(1.2) blur(8px);
+      background: color-mix(in srgb, var(--bg) 85%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent);
+    }
+    .topbar-inner{
+  max-width: 1200px; margin: 0 auto; padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: nowrap;              /* 不换行 */
+  overflow-x: auto;               /* 超出横向滚动 */
+  overscroll-behavior-x: contain; /* 减少误触滚动回弹 */
+  scrollbar-width: none;          /* 火狐隐藏滚动条 */
+}
+.topbar-inner::-webkit-scrollbar{ display: none; } /* WebKit 隐藏滚动条 */
+    .brand{ display:flex; align-items:center; gap:10px; padding-right: 10px; font-weight: 800; letter-spacing:.2px; }
+    .brand .logo{
+      width: 28px; height: 28px; border-radius: 8px; display:grid; place-content:center; color:#fff;
+      background: linear-gradient(135deg, var(--brand-1), var(--accent)); box-shadow: var(--shadow);
+      font-size: 16px;
+    }
+
+    /* 统一把“控件/按钮/芯片/下拉”等也使用高级字体栈（与正文一致） */
+    .btn, .seg button, .chip, .chip-toggle, .toggle-dir, .select, .select-inline, .select-pill, label.file, .action-link {
+      font-family: var(--ff-ui) !important;
+    }
+
+    .seg{ display: inline-flex; border-radius: 999px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--line) 35%, transparent); background: var(--card); box-shadow: var(--shadow); }
+    .seg button{
+      appearance:none; border:0; background:transparent; padding:8px 12px; color:var(--paper-ink); font-weight:600; cursor:pointer;
+      transition: .2s ease background, .2s ease color;
+    }
+    .seg button.active{ background: color-mix(in srgb, var(--brand-1) 10%, transparent); color: var(--brand-1); }
+    .seg button:hover{ background: color-mix(in srgb, var(--brand-1) 8%, transparent); }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px; border:1px solid color-mix(in srgb, var(--line) 35%, transparent);
+      background: var(--card); padding:6px 10px; border-radius: 999px; box-shadow: var(--shadow); white-space: nowrap; color: var(--paper-ink);
+    }
+    .btn{
+      appearance:none; border:1px solid color-mix(in srgb, var(--line) 35%, transparent);
+      padding:8px 12px; border-radius:10px; background: var(--card); color: var(--paper-ink);
+      font-weight: 600; cursor:pointer; transition:.2s ease transform, .2s ease background; box-shadow: var(--shadow);
+    }
+    .btn:hover{ transform: translateY(-1px); }
+    .btn.primary{ border-color:transparent; background: linear-gradient(135deg, var(--brand-1), var(--accent)); color:#fff; }
+    .btn.danger{ border-color:transparent; background: linear-gradient(135deg, var(--danger), #f59e0b); color:#fff; }
+    .btn.ghost{ background: transparent; }
+    label.file{ position:relative; overflow:hidden; }
+    label.file input{ position:absolute; inset:0; opacity:0; cursor: pointer; }
+
+    .divider{ width:1px; height:26px; background: color-mix(in srgb, var(--line) 35%, transparent); }
+    .spacer{ flex:1; }
+
+    main{ padding: 18px; }
+    .wrap{ max-width: 1200px; margin: 0 auto; }
+
+    /* A4 舞台（容器） */
+    .paper-wrap{ display:grid; place-content:center; }
+    .a4-stage{
+      position: relative;
+      width: 210mm; height: 297mm; /* 竖向 */
+      background: var(--paper);
+      border-radius: var(--radius);
+      box-shadow: 0 20px 50px rgba(0,0,0,.15);
+      overflow: hidden;
+      transition: width .45s ease, height .45s ease, background-color .25s ease, transform .45s ease;
+    }
+    .a4-stage.landscape{ width: 297mm; height: 210mm; }
+
+    /* 页面层（叠放，带切换动画） */
+    .page{
+      position: absolute; inset: 0;
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transform: translateX(20px) scale(.98);
+      transition: opacity .35s ease, transform .35s ease, visibility .35s ease;
+    }
+    .page.active{
+      opacity: 1; visibility: visible; pointer-events: auto;
+      transform: translateX(0) scale(1);
+    }
+
+    .page-scroll{
+      position: absolute; inset:0; overflow: auto; padding: 16mm 14mm 16mm 16mm;
+      scrollbar-width: thin;
+    }
+    .paper-head{
+      display:flex; align-items:flex-end; justify-content: space-between; gap:12px; margin-bottom: 8mm;
+    }
+    .paper-head h1{ margin:0; font-size: 22px; letter-spacing:.2px; font-weight: 700; color: var(--paper-ink); }
+    .muted{ color: var(--muted-ink); font-size: 12px; }
+    .stats{ display:flex; align-items:center; gap:8px; color: var(--muted-ink); flex-wrap: wrap; }
+
+    /* 筛选与排序 */
+    .filters{ display:flex; align-items:center; gap:10px; flex-wrap: wrap; margin: 2mm 0 4mm; }
+    .chips.manage .chip-toggle .del{
+  display: inline-flex;
+}
+.chip-toggle .del{
+  display: none; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-left: 6px; border-radius: 50%;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger); font-weight: 800; line-height: 1;
+}
+    .chips{ display:flex; gap:6px; flex-wrap: wrap; }
+    .chip-toggle{
+      padding: 4px 10px; border-radius: 999px; border:1px solid color-mix(in srgb, var(--line) 35%, transparent); background: var(--card);
+      cursor: pointer; font-weight: 600; color: var(--paper-ink); transition: .2s ease background, .2s ease color, .2s ease transform;
+      box-shadow: var(--shadow);
+    }
+    .chip-toggle.active{ background: color-mix(in srgb, var(--brand-1) 12%, transparent); color: var(--brand-1); }
+    .chip-toggle:hover{ transform: translateY(-1px); }
+    .small-input{ padding: 6px 8px; border-radius: 8px; border:1px solid color-mix(in srgb, var(--line) 60%, transparent); background: var(--paper); color: var(--paper-ink); }
+    .select{
+      appearance:none; padding:6px 26px 6px 10px; border-radius:10px; border:1px solid color-mix(in srgb, var(--line) 60%, transparent); background-color: var(--paper); color: var(--paper-ink); cursor:pointer;
+      background-repeat:no-repeat; background-position: right 8px center; background-size: 14px;
+      /* 浅色下拉箭头 */
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="%23475569"><path d="M7 10l5 5 5-5z"/></svg>');
+    }
+    /* 深色下拉箭头 */
+    [data-theme="dark"] .select{
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="%23cbd5e1"><path d="M7 10l5 5 5-5z"/></svg>');
+    }
+    .toggle-dir{ padding:6px 10px; border-radius:10px; border:1px solid color-mix(in srgb, var(--line) 60%, transparent); background: var(--paper); cursor:pointer; color: var(--paper-ink); }
+
+    /* 快速添加区 */
+    .quick-add{ display:flex; align-items:center; gap:8px; flex-wrap: wrap; justify-content: flex-end; }
+    .input{
+      background: var(--paper);
+      border: 1px dashed color-mix(in srgb, var(--line) 60%, transparent);
+      padding: 8px 10px; border-radius: 10px; min-width: 52mm; color: var(--paper-ink);
+      transition: .2s ease border, .2s ease background; outline: none;
+    }
+    .input:focus{ border-style: solid; border-color: var(--brand-1); background: color-mix(in srgb, var(--brand-1) 3%, var(--paper)); }
+    .input-date{ padding:8px 10px; border-radius:10px; border:1px dashed color-mix(in srgb, var(--line) 60%, transparent); background: var(--paper); color: var(--paper-ink); }
+    .select-pill{ padding:8px 10px; border-radius:999px; border:1px dashed color-mix(in srgb, var(--line) 60%, transparent); background: var(--paper); color: var(--paper-ink); }
+
+    /* 原生日期图标在深色模式下适配 */
+    input[type="date"]::-webkit-calendar-picker-indicator{ opacity:.9; }
+    [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator{ filter: invert(90%) saturate(1.2); opacity:.9; }
+
+    /* 条目行 */
+    .lines{ display:block; }
+    .item{
+      display:flex; align-items:center; gap: 3mm; margin-bottom: var(--gap-mm);
+      will-change: transform;
+    }
+    .handle{
+      width: 4mm; height: var(--tick-size-mm); display:grid; place-content:center; color: var(--muted-ink);
+      user-select: none; cursor: grab; transform: translateY(.2mm);
+    }
+    .handle.disabled{ opacity: .35; cursor: default; }
+    .item.dragging{ opacity: .5; }
+
+    .tick{
+      appearance:none; -webkit-appearance:none; outline:none; width: var(--tick-size-mm); height: var(--tick-size-mm);
+      border: .6mm solid var(--tick-border); border-radius: 1mm; background: var(--paper);
+      display:grid; place-content:center; cursor:pointer;
+      transition:.15s ease transform, .15s ease border-color, .15s ease background;
+      flex: 0 0 var(--tick-size-mm); color: #fff; /* 勾选符颜色 */
+    }
+    .tick:hover{ transform: translateY(-.4mm); }
+    .tick:checked{ background: var(--brand-1); border-color: var(--brand-1); }
+    .tick:checked::after{ content:"✓"; font-weight:900; font-size:5mm; line-height:1; transform: translateY(-.4mm); }
+
+    .line{ flex:1; min-height: 7mm; display:flex; align-items:center; border-bottom: var(--line-thin-mm) solid var(--line); position: relative; }
+    .text{
+      flex:1; min-height:7mm; padding:.8mm 0; outline: none; border:0; background:transparent; color: var(--paper-ink); font-size: 14px;
+    }
+    .text[contenteditable="true"]:empty::before{ content: attr(data-placeholder); color: color-mix(in srgb, var(--muted-ink) 80%, transparent); }
+
+    .meta-right{
+      margin-left: 4mm; white-space: nowrap; color: var(--muted-ink); font-size: 12px;
+      display:flex; align-items:center; gap: 8px; flex-wrap: wrap;
+    }
+
+    .tag{ display:inline-flex; align-items:center; gap:6px; padding: 2px 8px; font-size:12px; border-radius: 999px; background: color-mix(in srgb, var(--brand-1) 10%, transparent); color: var(--brand-1); }
+    .tag.gray{ background: color-mix(in srgb, var(--line) 40%, transparent); color: var(--paper-ink); }
+    .tag.deadline.over{ background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+    .tag.deadline.soon{ background: color-mix(in srgb, #f59e0b 18%, transparent); color: #f59e0b; }
+    .tag.priority.p1{ background: color-mix(in srgb, #10b981 18%, transparent); color:#10b981; } /* 低 */
+    .tag.priority.p2{ background: color-mix(in srgb, #3b82f6 18%, transparent); color:#3b82f6; } /* 普通 */
+    .tag.priority.p3{ background: color-mix(in srgb, #f59e0b 18%, transparent); color:#f59e0b; } /* 高 */
+    .tag.priority.p4{ background: color-mix(in srgb, #ef4444 18%, transparent); color:#ef4444; } /* 紧急 */
+
+    .action-link{ color: var(--accent); cursor:pointer; font-weight:700; text-decoration: none; }
+    .action-link:hover{ text-decoration: underline; }
+
+    .select-inline, .date-inline{
+      padding: 2px 6px; border-radius: 8px; border:1px solid color-mix(in srgb, var(--line) 60%, transparent); background: var(--paper);
+      color: var(--paper-ink); font-size: 12px;
+    }
+    .select-inline{
+      padding-right: 22px; appearance:none;
+      background-repeat:no-repeat; background-position: right 6px center; background-size: 12px;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="%23475569"><path d="M7 10l5 5 5-5z"/></svg>');
+    }
+    [data-theme="dark"] .select-inline{
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="%23cbd5e1"><path d="M7 10l5 5 5-5z"/></svg>');
+    }
+
+    .blanks .item .handle{ opacity: .35; }
+    .blanks .item .tick{ opacity: .35; cursor: default; }
+    .blanks .item .text{ color: color-mix(in srgb, var(--muted-ink) 80%, transparent); }
+    .blanks .item .text:hover{ cursor: text; }
+
+    /* 拖拽可视化：占位符 + 跟随卡片 */
+    .placeholder{
+      height: 20px; /* 实际高度由 JS 设置 */
+      border: 2px dashed var(--brand-1);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--brand-1) 8%, transparent);
+      margin-bottom: var(--gap-mm);
+      transition: all .12s ease;
+    }
+    .drag-proxy{
+      position: fixed; left: 0; top: 0; z-index: 9999;
+      pointer-events: none;
+      background: var(--paper);
+      border-radius: 6px;
+      box-shadow: 0 12px 24px rgba(0,0,0,.2);
+      transform-origin: top left;
+      opacity: .98;
+      color: var(--paper-ink);
+    }
+    body.dnd-active, body.dnd-active *{ cursor: grabbing !important; }
+
+    footer .tips{ max-width: 1200px; margin: 12px auto 36px; padding: 8px 12px; color: var(--muted-ink); }
+
+    @media print{
+      body{ background:#fff; }
+      .topbar, footer{ display:none !important; }
+      .paper-wrap{ display:block; }
+      .a4-stage{ box-shadow: none; border-radius: 0; }
+      .page-scroll{ overflow: visible; }
+    }
+  </style>
+
+  <!-- 导出图片 & PDF -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
-    <div class="header">
-        <div class="controls">
-            <button id="show-todo-btn" class="control-btn active">待办事项</button>
-            <button id="show-completed-btn" class="control-btn">已完成事项</button>
-            <button id="toggle-orientation-btn" class="control-btn">切换横向/纵向</button>
-            <button id="export-pdf-btn" class="control-btn">导出 PDF</button>
-            <button id="export-png-btn" class="control-btn">导出 PNG</button>
-        </div>
-    </div>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo">📄</div>
+        <div>A4 待办清单</div>
+      </div>
 
-    <div id="page-container" class="page-container">
-        <div id="todo-page" class="a4-page portrait">
-            <div class="page-header">
-                <h2>待办事项</h2>
-            </div>
-            <div id="todo-list" class="list-container">
+      <!-- Tab：待办 / 已完成 -->
+      <div class="seg" id="tabSeg">
+        <button class="active" data-tab="todo">待办</button>
+        <button data-tab="done">已完成</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- 横向 / 竖向 -->
+      <div class="seg" id="oriSeg" title="横向/竖向（带过渡动画）">
+        <button class="active" data-ori="portrait">竖向</button>
+        <button data-ori="landscape">横向</button>
+      </div>
+
+      <span class="chip">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input id="fillBlanksToggle" type="checkbox" style="accent-color: var(--brand-2);" />
+          自动补满空白线
+        </label>
+      </span>
+
+      <span class="chip">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input id="themeToggle" type="checkbox" style="accent-color: var(--brand-1);" />
+          深色模式
+        </label>
+      </span>
+
+      <div class="spacer"></div>
+
+      <!-- 导出/打印 -->
+      <div class="seg" title="导出当前页面">
+        <button id="exportPNG" class="ghost">导出 PNG</button>
+        <button id="exportPDF" class="ghost">导出 PDF</button>
+        <button id="printPage" class="ghost">打印</button>
+      </div>
+
+      <!-- 数据导入导出 -->
+      <span class="chip">
+        <button id="exportData" class="btn">导出数据</button>
+        <label class="file btn">
+          导入数据
+          <input id="importData" type="file" accept=".json,application/json" />
+        </label>
+      </span>
+    </div>
+  </div>
+
+  <main>
+    <div class="wrap">
+      <div class="paper-wrap">
+        <!-- 纸张舞台 -->
+        <div id="paperStage" class="a4-stage portrait">
+          <!-- 待办页面 -->
+          <section id="page-todo" class="page active">
+            <div class="page-scroll">
+              <div class="paper-head">
+                <div>
+                  <h1>待办事项</h1>
+                  <div class="stats">
+                    <span id="dateStr"></span>
+                    <span>｜待办 <b id="todoCount">0</b> 项</span>
+                  </div>
+                  <!-- 分类与排序控制 -->
+                  <div class="filters">
+                    <div class="chips" id="categoryChips"></div>
+                    <button id="addCatBtn" class="chip-toggle">＋ 分类</button>
+                    <button id="manageCatBtn" class="chip-toggle">管理分类</button>
+                    <input id="addCatInput" class="small-input" placeholder="新分类名，回车确认" style="display:none;" />
+                    <span class="divider" style="height:20px;"></span>
+                    <select id="sortField" class="select">
+                      <option value="manual">手动排序</option>
+                      <option value="createdAt">创建时间</option>
+                      <option value="dueDate">截止日期</option>
+                      <option value="priority">优先级</option>
+                    </select>
+                    <button id="sortDir" class="toggle-dir" title="升/降序切换">⬇︎ 降序</button>
+                  </div>
                 </div>
-        </div>
-
-        <div id="completed-page" class="a4-page portrait hidden">
-            <div class="page-header">
-                <h2>已完成事项</h2>
-            </div>
-            <div id="completed-list" class="list-container">
+                <!-- 快速添加 -->
+                <div class="quick-add">
+                  <input id="quickInput" class="input" placeholder="快速添加待办（Enter 添加）" />
+                  <input id="quickDue" type="date" class="input-date" title="截止日期（可选）" />
+                  <select id="quickPri" class="select-pill" title="优先级">
+                    <option value="2">普通</option>
+                    <option value="1">低</option>
+                    <option value="3">高</option>
+                    <option value="4">紧急</option>
+                  </select>
+                  <select id="quickCat" class="select-pill" title="分类"></select>
+                  <button id="addBtn" class="btn primary">＋ 添加</button>
                 </div>
-        </div>
-    </div>
+              </div>
 
-    <div id="export-page-container" class="export-page-container">
-        <div id="export-page" class="a4-page portrait">
-            <div class="page-header">
-                <h2 id="export-page-title"></h2>
+              <div id="todoList" class="lines"></div>
+              <div id="todoBlanks" class="lines blanks"></div>
             </div>
-            <div id="export-todo-list" class="list-container"></div>
-            <div id="export-completed-list" class="list-container"></div>
-        </div>
-    </div>
+          </section>
 
-    <script src="script.js"></script>
+          <!-- 已完成页面 -->
+          <section id="page-done" class="page">
+            <div class="page-scroll">
+              <div class="paper-head">
+                <div>
+                  <h1>已完成</h1>
+                  <div class="stats">
+                    <span id="doneInfo">共 <b id="doneCount">0</b> 项</span>
+                  </div>
+                  <div class="filters">
+                    <div class="chips" id="categoryChipsDone"></div>
+                    <button id="addCatBtnDone" class="chip-toggle">＋ 分类</button>
+                    <button id="manageCatBtnDone" class="chip-toggle">管理分类</button>
+                    <input id="addCatInputDone" class="small-input" placeholder="新分类名，回车确认" style="display:none;" />
+                    <span class="divider" style="height:20px;"></span>
+                    <select id="sortFieldDone" class="select">
+                      <option value="manual">手动排序</option>
+                      <option value="createdAt">创建时间</option>
+                      <option value="dueDate">截止日期</option>
+                      <option value="priority">优先级</option>
+                      <option value="completedAt">完成时间</option>
+                    </select>
+                    <button id="sortDirDone" class="toggle-dir" title="升/降序切换">⬇︎ 降序</button>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button id="undoLast" class="btn">撤销最近</button>
+                  <button id="clearDone" class="btn danger">清空已完成</button>
+                </div>
+              </div>
+
+              <div id="doneList" class="lines"></div>
+              <div id="doneBlanks" class="lines blanks"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="tips">
+      系统版本：V0.2.4
+    </div>
+  </footer>
+
+  <script>
+    // Storage version
+    const STORAGE_KEY = 'a4todo-state-v2';
+
+    // DOM refs
+    const el = {
+      stage: document.getElementById('paperStage'),
+      pageTodo: document.getElementById('page-todo'),
+      pageDone: document.getElementById('page-done'),
+
+      todoList: document.getElementById('todoList'),
+      doneList: document.getElementById('doneList'),
+      todoBlanks: document.getElementById('todoBlanks'),
+      doneBlanks: document.getElementById('doneBlanks'),
+
+      quickInput: document.getElementById('quickInput'),
+      quickDue: document.getElementById('quickDue'),
+      quickPri: document.getElementById('quickPri'),
+      quickCat: document.getElementById('quickCat'),
+      addBtn: document.getElementById('addBtn'),
+
+      dateStr: document.getElementById('dateStr'),
+      todoCount: document.getElementById('todoCount'),
+      doneCount: document.getElementById('doneCount'),
+      undoLast: document.getElementById('undoLast'),
+      clearDone: document.getElementById('clearDone'),
+
+      tabSeg: document.getElementById('tabSeg'),
+      oriSeg: document.getElementById('oriSeg'),
+      fillBlanksToggle: document.getElementById('fillBlanksToggle'),
+      themeToggle: document.getElementById('themeToggle'),
+
+      exportPNG: document.getElementById('exportPNG'),
+      exportPDF: document.getElementById('exportPDF'),
+      exportData: document.getElementById('exportData'),
+      importData: document.getElementById('importData'),
+      printPage: document.getElementById('printPage'),
+
+      categoryChips: document.getElementById('categoryChips'),
+      addCatBtn: document.getElementById('addCatBtn'),
+      addCatInput: document.getElementById('addCatInput'),
+
+      categoryChipsDone: document.getElementById('categoryChipsDone'),
+      addCatBtnDone: document.getElementById('addCatBtnDone'),
+      addCatInputDone: document.getElementById('addCatInputDone'),
+
+      sortField: document.getElementById('sortField'),
+      sortDir: document.getElementById('sortDir'),
+      sortFieldDone: document.getElementById('sortFieldDone'),
+      sortDirDone: document.getElementById('sortDirDone'),
+
+      manageCatBtn: document.getElementById('manageCatBtn'),
+      manageCatBtnDone: document.getElementById('manageCatBtnDone'),
+    };
+    let manageCats = false; // 是否进入“管理分类”模式（显示删除按钮）
+    function updateManageButtons(){
+  [el.manageCatBtn, el.manageCatBtnDone].forEach(btn=>{
+    if(!btn) return;
+    btn.classList.toggle('active', manageCats);
+    btn.textContent = manageCats ? '完成管理' : '管理分类';
+  });
+}
+
+el.manageCatBtn?.addEventListener('click', ()=>{
+  manageCats = !manageCats; updateManageButtons(); render();
+});
+el.manageCatBtnDone?.addEventListener('click', ()=>{
+  manageCats = !manageCats; updateManageButtons(); render();
+});
+
+    // Default state
+    let state = normalizeState(loadState() || {
+      orientation: 'portrait',
+      theme: 'light',
+      fillBlanks: true,
+      categories: ['工作','生活','学习'],
+      filters: { category: 'all' },
+      sortTodo: { field: 'manual', dir: 'desc' },
+      sortDone: { field: 'manual', dir: 'desc' },
+      tasks: [],
+      completed: [],
+      counters: { order: 0, orderDone: 0 },
+      lastAction: null
+    });
+
+    // Helpers: date/time
+    function fmtDateTime(dt){
+      const pad = n => String(n).padStart(2,'0');
+      return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    }
+    function todayStr(){
+      const now = new Date();
+      const wk = ['日','一','二','三','四','五','六'][now.getDay()];
+      return `今天：${fmtDateTime(now)}（周${wk}）`;
+    }
+    document.getElementById('dateStr').textContent = todayStr();
+
+    // Apply theme & orientation
+    document.documentElement.setAttribute('data-theme', state.theme === 'dark' ? 'dark' : 'light');
+    el.stage.classList.toggle('landscape', state.orientation === 'landscape');
+    el.stage.classList.toggle('portrait', state.orientation !== 'landscape');
+    el.fillBlanksToggle.checked = !!state.fillBlanks;
+    el.themeToggle.checked = state.theme === 'dark';
+
+    // Render
+    function render(){
+      buildCategoryChips(el.categoryChips);
+      buildCategoryChips(el.categoryChipsDone);
+      buildQuickCat();
+
+      const filteredTodos = state.tasks.filter(t => filterByCategory(t, state.filters.category));
+      const filteredDones = state.completed.filter(t => filterByCategory(t, state.filters.category));
+
+      const viewTodos = sortView(filteredTodos, state.sortTodo);
+      const viewDones = sortView(filteredDones, state.sortDone);
+
+      el.todoCount.textContent = filteredTodos.length;
+      el.doneCount.textContent = filteredDones.length;
+
+      el.todoList.innerHTML = '';
+      el.doneList.innerHTML = '';
+      viewTodos.forEach(item => el.todoList.appendChild(buildTodoItem(item)));
+      viewDones.forEach(item => el.doneList.appendChild(buildDoneItem(item)));
+
+      if(state.fillBlanks){
+        fillBlankLines(el.pageTodo, el.todoList, el.todoBlanks);
+        fillBlankLines(el.pageDone, el.doneList, el.doneBlanks);
+      }else{
+        el.todoBlanks.innerHTML = '';
+        el.doneBlanks.innerHTML = '';
+      }
+
+      el.sortField.value = state.sortTodo.field;
+      el.sortDir.textContent = (state.sortTodo.dir === 'asc' ? '⬆︎ 升序' : '⬇︎ 降序');
+      el.sortFieldDone.value = state.sortDone.field;
+      el.sortDirDone.textContent = (state.sortDone.dir === 'asc' ? '⬆︎ 升序' : '⬇︎ 降序');
+
+      updateHandleEnabled(el.todoList, state.sortTodo.field === 'manual');
+      updateHandleEnabled(el.doneList, state.sortDone.field === 'manual');
+
+      saveState();
+      updateDueCountdowns();
+    }
+
+    function buildCategoryChips(container){
+  container.innerHTML = '';
+  container.classList.toggle('manage', manageCats); // chips 容器进入管理态，显示删除按钮
+  const cats = ['全部', ...state.categories];
+  cats.forEach(c=>{
+    const chip = document.createElement('button');
+    const isActive = ((state.filters.category === 'all' && c==='全部') || (state.filters.category === c));
+    chip.className = 'chip-toggle' + (isActive ? ' active' : '');
+    chip.textContent = c;
+
+    // 点击 chip：切换筛选
+    chip.addEventListener('click', ()=>{
+      state.filters.category = (c === '全部' ? 'all' : c);
+      renderWithFade();
+    });
+
+    // 非“全部”的分类，附加删除按钮（管理态下显示）
+    if(c !== '全部'){
+      const del = document.createElement('span');
+      del.className = 'del';   // 样式由 CSS 控制显示与否
+      del.title = `删除分类「${c}」`;
+      del.textContent = '×';
+      del.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        deleteCategory(c);
+      });
+      chip.appendChild(del);
+    }
+
+    container.appendChild(chip);
+  });
+}
+    function deleteCategory(name){
+  if(!state.categories.includes(name)) return;
+  if(!confirm(`确认删除分类「${name}」吗？分类下任务不会被删除，将归为“未归类”。`)) return;
+
+  // 移除分类
+  state.categories = state.categories.filter(c => c !== name);
+
+  // 清理任务分类：仅置空，不删任务
+  state.tasks.forEach(t => { if(t.category === name) t.category = ''; });
+  state.completed.forEach(t => { if(t.category === name) t.category = ''; });
+
+  // 若当前筛选就是此分类，则切回“全部”
+  if(state.filters.category === name){
+    state.filters.category = 'all';
+  }
+
+  saveState();
+  render();
+}
+    function buildQuickCat(){
+      el.quickCat.innerHTML = '';
+      const optAuto = document.createElement('option');
+      optAuto.value = ''; optAuto.textContent = '（当前分类）';
+      el.quickCat.appendChild(optAuto);
+      state.categories.forEach(c=>{
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        el.quickCat.appendChild(opt);
+      });
+    }
+    function filterByCategory(item, cat){
+      if(cat==='all') return true;
+      return (item.category || '') === cat;
+    }
+
+    // 排序
+    function sortView(arr, sort){
+      const a = arr.slice();
+      if(sort.field === 'manual'){
+        a.sort((x,y)=> (x.order||0) - (y.order||0));
+        if(sort.dir === 'desc') a.reverse();
+        return a;
+      }
+      const mapPri = (p)=>({1:1,2:2,3:3,4:4}[p||2]);
+      a.sort((x,y)=>{
+        let vx=0, vy=0;
+        if(sort.field==='createdAt'){ vx = x.createdAt || 0; vy = y.createdAt || 0; }
+        else if(sort.field==='dueDate'){ vx = x.dueDate ? new Date(x.dueDate).getTime() : Infinity; vy = y.dueDate ? new Date(y.dueDate).getTime() : Infinity; }
+        else if(sort.field==='priority'){ vx = mapPri(x.priority); vy = mapPri(y.priority); }
+        else if(sort.field==='completedAt'){ vx = x.completedAt || 0; vy = y.completedAt || 0; }
+        return (vx - vy);
+      });
+      if(sort.dir==='desc') a.reverse();
+      return a;
+    }
+
+    function updateHandleEnabled(listEl, enabled){
+      listEl.querySelectorAll('.handle').forEach(h=>{
+        h.classList.toggle('disabled', !enabled);
+      });
+    }
+
+    function classForPriority(p){
+      return {1:'p1',2:'p2',3:'p3',4:'p4'}[p||2];
+    }
+
+    function buildTodoItem(item){
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.dataset.id = item.id;
+      row.dataset.list = 'todo';
+
+      const handle = document.createElement('div');
+      handle.className = 'handle';
+      handle.title = '拖动以手动排序';
+      handle.textContent = '☰';
+
+      const tick = document.createElement('input');
+      tick.type = 'checkbox'; tick.className = 'tick'; tick.title = '完成此项';
+      tick.addEventListener('change', ()=>{ if(tick.checked){ completeItem(item.id); } });
+
+      const line = document.createElement('div');
+      line.className = 'line';
+
+      const text = document.createElement('div');
+      text.className = 'text';
+      text.contentEditable = "true";
+      text.spellcheck = false;
+      text.dataset.placeholder = '在此填写待办内容……';
+      text.textContent = item.text || '';
+      text.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); text.blur(); } });
+      text.addEventListener('blur', ()=>{
+        const v = (text.textContent||'').trim();
+        if(v !== (item.text||'')){ item.text = v; saveState(); }
+      });
+      text.addEventListener('dblclick', ()=> selectContent(text));
+      line.appendChild(text);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta-right muted';
+
+      // 截止日期 + 倒计时
+      const deadlineWrap = document.createElement('span');
+      deadlineWrap.className = 'tag deadline';
+      const dueInput = document.createElement('input');
+      dueInput.type = 'date'; dueInput.className = 'date-inline';
+      if(item.dueDate) dueInput.value = item.dueDate;
+      const dueText = document.createElement('span');
+      dueText.className = 'countdown'; dueText.dataset.id = item.id;
+      dueInput.addEventListener('change', ()=>{
+        const v = dueInput.value || '';
+        item.dueDate = v || null;
+        saveState(); updateDueCountdowns();
+      });
+      deadlineWrap.appendChild(dueInput);
+      deadlineWrap.appendChild(dueText);
+
+      // 优先级
+      const priTag = document.createElement('span');
+      priTag.className = `tag priority ${classForPriority(item.priority)}`;
+      const priSel = document.createElement('select');
+      priSel.className = 'select-inline';
+      [ {v:1,l:'低'}, {v:2,l:'普通'}, {v:3,l:'高'}, {v:4,l:'紧急'} ].forEach(o=>{
+        const op = document.createElement('option'); op.value = o.v; op.textContent = o.l; priSel.appendChild(op);
+      });
+      priSel.value = String(item.priority || 2);
+      priSel.addEventListener('change', ()=>{
+        item.priority = Number(priSel.value)||2;
+        priTag.className = `tag priority ${classForPriority(item.priority)}`;
+        saveState();
+      });
+      priTag.appendChild(priSel);
+
+      // 分类
+      const catTag = document.createElement('span');
+      catTag.className = 'tag gray';
+      const catSel = document.createElement('select');
+      catSel.className = 'select-inline';
+      const none = document.createElement('option'); none.value=''; none.textContent='未归类'; catSel.appendChild(none);
+      state.categories.forEach(c=>{ const op=document.createElement('option'); op.value=c; op.textContent=c; catSel.appendChild(op); });
+      catSel.value = item.category || '';
+      catSel.addEventListener('change', ()=>{
+        item.category = catSel.value || '';
+        saveState(); render();
+      });
+      catTag.appendChild(catSel);
+
+      // 创建日期 + 删除
+      const created = document.createElement('span');
+      created.textContent = new Date(item.createdAt).toLocaleDateString();
+      created.title = '创建日期';
+      created.className = 'muted';
+
+      const del = document.createElement('a');
+      del.href='javascript:void(0)'; del.className = 'action-link'; del.textContent='删除';
+      del.addEventListener('click', ()=>{
+        if(confirm('确认删除这条待办吗？')){
+          state.tasks = state.tasks.filter(t => t.id !== item.id);
+          render();
+        }
+      });
+
+      meta.appendChild(deadlineWrap);
+      meta.appendChild(priTag);
+      meta.appendChild(catTag);
+      meta.appendChild(created);
+      meta.appendChild(del);
+
+      setupDrag(row, handle);
+
+      row.appendChild(handle);
+      row.appendChild(tick);
+      row.appendChild(line);
+      row.appendChild(meta);
+      return row;
+    }
+
+    function buildDoneItem(item){
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.dataset.id = item.id;
+      row.dataset.list = 'done';
+
+      const handle = document.createElement('div');
+      handle.className = 'handle';
+      handle.title = '拖动以手动排序';
+      handle.textContent = '☰';
+
+      const tick = document.createElement('input');
+      tick.type = 'checkbox'; tick.className='tick'; tick.checked = true; tick.disabled = true;
+
+      const line = document.createElement('div');
+      line.className = 'line';
+      const text = document.createElement('div');
+      text.className = 'text'; text.contentEditable = "false"; text.textContent = item.text || '';
+      line.appendChild(text);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta-right muted';
+
+      const deadlineWrap = document.createElement('span');
+      deadlineWrap.className = 'tag deadline';
+      const dueInput = document.createElement('input');
+      dueInput.type = 'date'; dueInput.className='date-inline';
+      if(item.dueDate) dueInput.value = item.dueDate;
+      const dueText = document.createElement('span');
+      dueText.className = 'countdown'; dueText.dataset.id = item.id;
+      dueInput.addEventListener('change', ()=>{
+        item.dueDate = dueInput.value || null;
+        saveState(); updateDueCountdowns();
+      });
+      deadlineWrap.appendChild(dueInput);
+      deadlineWrap.appendChild(dueText);
+
+      const priTag = document.createElement('span');
+      priTag.className = `tag priority ${classForPriority(item.priority)}`;
+      const priSel = document.createElement('select');
+      priSel.className = 'select-inline';
+      [ {v:1,l:'低'}, {v:2,l:'普通'}, {v:3,l:'高'}, {v:4,l:'紧急'} ].forEach(o=>{
+        const op=document.createElement('option'); op.value=o.v; op.textContent=o.l; priSel.appendChild(op);
+      });
+      priSel.value = String(item.priority || 2);
+      priSel.addEventListener('change', ()=>{
+        item.priority = Number(priSel.value)||2;
+        priTag.className = `tag priority ${classForPriority(item.priority)}`;
+        saveState();
+      });
+      priTag.appendChild(priSel);
+
+      const catTag = document.createElement('span');
+      catTag.className = 'tag gray';
+      const catSel = document.createElement('select');
+      catSel.className = 'select-inline';
+      const none = document.createElement('option'); none.value=''; none.textContent='未归类'; catSel.appendChild(none);
+      state.categories.forEach(c=>{ const op=document.createElement('option'); op.value=c; op.textContent=c; catSel.appendChild(op); });
+      catSel.value = item.category || '';
+      catSel.addEventListener('change', ()=>{
+        item.category = catSel.value || '';
+        saveState(); render();
+      });
+      catTag.appendChild(catSel);
+
+      const ts = document.createElement('span');
+      ts.textContent = fmtDateTime(new Date(item.completedAt || Date.now()));
+      ts.title = '完成时间';
+
+      const restore = document.createElement('a');
+      restore.href='javascript:void(0)'; restore.className='action-link'; restore.textContent='恢复';
+      restore.addEventListener('click', ()=> restoreItem(item.id));
+
+      const del = document.createElement('a');
+      del.href='javascript:void(0)'; del.className='action-link'; del.textContent='删除';
+      del.addEventListener('click', ()=>{
+        if(confirm('确认从已完成删除吗？')){
+          state.completed = state.completed.filter(t => t.id !== item.id);
+          render();
+        }
+      });
+
+      setupDrag(row, handle);
+
+      meta.appendChild(deadlineWrap);
+      meta.appendChild(priTag);
+      meta.appendChild(catTag);
+      meta.appendChild(ts);
+      meta.appendChild(restore);
+      meta.appendChild(del);
+
+      row.appendChild(handle);
+      row.appendChild(tick);
+      row.appendChild(line);
+      row.appendChild(meta);
+      return row;
+    }
+
+    // 自定义指针拖拽（占位符 + 预览）
+    function isManual(listType){
+      return listType==='todo' ? state.sortTodo.field==='manual' : state.sortDone.field==='manual';
+    }
+    function setupDrag(row, handle){
+      if(handle._dragBound) return;
+      handle._dragBound = true;
+      handle.addEventListener('pointerdown', (e)=> startPointerDrag(e, row));
+    }
+    function startPointerDrag(e, row){
+      const listType = row.dataset.list;
+      if(!isManual(listType)) return;
+      e.preventDefault();
+
+      const listEl = listType==='todo' ? el.todoList : el.doneList;
+      const scrollEl = row.closest('.page-scroll');
+      const rect = row.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left;
+      const offsetY = e.clientY - rect.top;
+
+      const placeholder = document.createElement('div');
+      placeholder.className = 'placeholder';
+      placeholder.style.height = `${rect.height}px`;
+      listEl.insertBefore(placeholder, row);
+
+      listEl.removeChild(row);
+      row.classList.add('dragging');
+
+      const proxy = row.cloneNode(true);
+      proxy.classList.add('drag-proxy');
+      proxy.style.width = `${rect.width}px`;
+      document.body.appendChild(proxy);
+      positionProxy(proxy, e.clientX - offsetX, e.clientY - offsetY);
+      document.body.classList.add('dnd-active');
+
+      const ctx = { listEl, scrollEl, placeholder, proxy, row, offsetX, offsetY, listType };
+
+      function onMove(ev){
+        positionProxy(proxy, ev.clientX - offsetX, ev.clientY - offsetY);
+        autoScroll(ctx, ev.clientY);
+
+        const before = captureRects(listEl);
+        const afterEl = getAfterElementByY(listEl, ev.clientY, placeholder);
+        if(afterEl == null) listEl.appendChild(placeholder);
+        else listEl.insertBefore(placeholder, afterEl);
+        flipAnimate(listEl, before);
+      }
+      function onUp(){
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        document.body.classList.remove('dnd-active');
+
+        listEl.insertBefore(row, placeholder);
+        row.classList.remove('dragging');
+        placeholder.remove();
+        proxy.remove();
+
+        const ids = Array.from(listEl.querySelectorAll('.item')).map(r=>r.dataset.id);
+        if(listType==='todo'){ applyNewOrder(state.tasks, ids); }
+        else{ applyNewOrder(state.completed, ids); }
+        render();
+      }
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    }
+    function positionProxy(el, x, y){ el.style.left = x + 'px'; el.style.top = y + 'px'; }
+    function autoScroll(ctx, clientY){
+      const rect = ctx.scrollEl.getBoundingClientRect();
+      const margin = 40, step = 18;
+      if(clientY < rect.top + margin) ctx.scrollEl.scrollTop -= step;
+      else if(clientY > rect.bottom - margin) ctx.scrollEl.scrollTop += step;
+    }
+    function captureRects(listEl){
+      const map = new Map();
+      listEl.querySelectorAll('.item').forEach(it=>{ map.set(it, it.getBoundingClientRect()); });
+      return map;
+    }
+    function flipAnimate(listEl, before){
+      listEl.querySelectorAll('.item').forEach(it=>{
+        const first = before.get(it); if(!first) return;
+        const last = it.getBoundingClientRect();
+        const dx = first.left - last.left;
+        const dy = first.top - last.top;
+        if(dx || dy){
+          it.style.transform = `translate(${dx}px, ${dy}px)`;
+          it.style.transition = 'transform 0s';
+          requestAnimationFrame(()=>{
+            it.style.transition = 'transform 160ms ease';
+            it.style.transform = '';
+          });
+        }
+      });
+    }
+    function getAfterElementByY(container, y, placeholder){
+      const els = [...container.children].filter(el=> (el.classList?.contains('item') || el.classList?.contains('placeholder')) && el !== placeholder);
+      let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+      els.forEach(child=>{
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height/2;
+        if(offset < 0 && offset > closest.offset){
+          closest = { offset, element: child };
+        }
+      });
+      return closest.element;
+    }
+    function applyNewOrder(arr, ids){
+      const map = new Map(arr.map(x=>[x.id, x]));
+      ids.forEach((id, idx)=>{ const it = map.get(id); if(it){ it.order = idx; } });
+      saveState();
+    }
+
+    function updateDueCountdowns(){
+      const now = new Date();
+      document.querySelectorAll('.countdown').forEach(span=>{
+        const id = span.dataset.id;
+        const item = state.tasks.find(t=>t.id===id) || state.completed.find(t=>t.id===id);
+        const wrap = span.closest('.deadline');
+        if(!wrap) return;
+        wrap.classList.remove('over','soon');
+        if(!item || !item.dueDate){
+          span.textContent = '未设定';
+          return;
+        }
+        const d = new Date(item.dueDate);
+        const days = Math.floor((d.setHours(0,0,0,0) - new Date(now).setHours(0,0,0,0)) / (24*3600*1000));
+        if(days < 0){ span.textContent = `已超期 ${Math.abs(days)} 天`; wrap.classList.add('over'); }
+        else if(days === 0){ span.textContent = '今天到期'; wrap.classList.add('soon'); }
+        else if(days === 1){ span.textContent = '明天到期'; wrap.classList.add('soon'); }
+        else{ span.textContent = `还剩 ${days} 天`; if(days <= 3) wrap.classList.add('soon'); }
+      });
+    }
+    setInterval(updateDueCountdowns, 60*1000);
+
+    function completeItem(id){
+      const idx = state.tasks.findIndex(t=>t.id===id);
+      if(idx === -1) return;
+      const item = state.tasks[idx];
+      item.done = true;
+      const moved = { ...item, completedAt: Date.now() };
+      state.tasks.splice(idx,1);
+      moved.order = ++state.counters.orderDone;
+      state.completed.push(moved);
+      state.lastAction = { type:'complete', item: moved };
+      renderWithFade();
+    }
+    function restoreItem(id){
+      const idx = state.completed.findIndex(t=>t.id===id);
+      if(idx === -1) return;
+      const item = state.completed[idx];
+      const restored = { id: item.id, text: item.text, done:false, createdAt: item.createdAt, priority: item.priority, category: item.category || '', dueDate: item.dueDate || null };
+      restored.order = ++state.counters.order;
+      state.completed.splice(idx,1);
+      state.tasks.push(restored);
+      state.lastAction = { type:'restore', item: restored };
+      renderWithFade();
+    }
+
+    // 智能补满空白线
+    function fillBlankLines(pageEl, listEl, blanksEl){
+      blanksEl.innerHTML = '';
+      const scroll = pageEl.querySelector('.page-scroll');
+      const totalH = scroll.clientHeight;
+      const headH = scroll.querySelector('.paper-head').offsetHeight + (scroll.querySelector('.filters')?.offsetHeight || 0);
+      const usedH = listEl.scrollHeight;
+      const remain = totalH - headH - usedH - 12;
+      if(remain <= 0) return;
+
+      const probe = document.createElement('div');
+      probe.className='item';
+      probe.style.visibility='hidden';
+      probe.innerHTML = `
+        <div class="handle">☰</div>
+        <input class="tick" type="checkbox" disabled />
+        <div class="line"><div class="text"></div></div>
+        <div class="meta-right muted" style="width:60px;">&nbsp;</div>
+      `;
+      blanksEl.appendChild(probe);
+      const lineH = probe.offsetHeight + parseFloat(getComputedStyle(probe).marginBottom||'0');
+      blanksEl.removeChild(probe);
+
+      const n = Math.max(0, Math.floor(remain / lineH));
+      for(let i=0;i<n;i++) blanksEl.appendChild(buildBlankLine());
+    }
+    function buildBlankLine(){
+      const row = document.createElement('div');
+      row.className = 'item';
+      const handle = document.createElement('div'); handle.className='handle disabled'; handle.textContent='☰';
+      const tick = document.createElement('input'); tick.type='checkbox'; tick.className='tick'; tick.disabled = true;
+      const line = document.createElement('div'); line.className='line';
+      const text = document.createElement('div'); text.className='text'; text.dataset.placeholder='……';
+      text.addEventListener('focus', ()=>{
+        const newItem = { id: uid(), text:'', done:false, createdAt: Date.now(), priority: 2, category: state.filters.category==='all'?'':state.filters.category, dueDate: null, order: ++state.counters.order };
+        state.tasks.push(newItem);
+        render();
+        setTimeout(()=>{
+          const last = el.todoList.querySelector('.item:last-child .text');
+          if(last){ last.focus(); }
+        }, 0);
+      });
+      line.appendChild(text);
+      const meta = document.createElement('div'); meta.className='meta-right muted';
+      row.appendChild(handle); row.appendChild(tick); row.appendChild(line); row.appendChild(meta);
+      return row;
+    }
+
+    // 添加/撤销/清空
+    el.addBtn.addEventListener('click', addQuick);
+    el.quickInput.addEventListener('keydown', e=>{ if(e.key==='Enter') addQuick(); });
+    function addQuick(){
+      const text = (el.quickInput.value||'').trim();
+      if(!text){ el.quickInput.focus(); return; }
+      const due = el.quickDue.value || null;
+      const pri = Number(el.quickPri.value)||2;
+      const cat = el.quickCat.value || (state.filters.category==='all' ? '' : state.filters.category);
+      state.tasks.push({
+        id: uid(), text, done:false, createdAt: Date.now(),
+        dueDate: due, priority: pri, category: cat,
+        order: ++state.counters.order
+      });
+      el.quickInput.value=''; el.quickDue.value='';
+      render();
+    }
+
+    el.undoLast.addEventListener('click', ()=>{
+      if(!state.lastAction){ alert('没有可撤销的操作'); return; }
+      const a = state.lastAction;
+      if(a.type==='complete'){
+        const idx = state.completed.findIndex(t=>t.id===a.item.id);
+        if(idx>-1){
+          const it = state.completed[idx];
+          state.completed.splice(idx,1);
+          const restored = { id: it.id, text: it.text, done:false, createdAt: it.createdAt, priority: it.priority, category: it.category||'', dueDate: it.dueDate||null, order: ++state.counters.order };
+          state.tasks.push(restored);
+          state.lastAction = { type:'restore', item: restored };
+          render();
+        }
+      }else if(a.type==='restore'){
+        const idx = state.tasks.findIndex(t=>t.id===a.item.id);
+        if(idx>-1){
+          const it = state.tasks[idx];
+          state.tasks.splice(idx,1);
+          const moved = { ...it, done:true, completedAt: Date.now(), order: ++state.counters.orderDone };
+          state.completed.push(moved);
+          state.lastAction = { type:'complete', item: moved };
+          render();
+        }
+      }
+    });
+    el.clearDone.addEventListener('click', ()=>{
+      if(state.completed.length===0) return;
+      if(confirm('确认清空所有已完成吗？此操作不可撤销。')){
+        state.completed = [];
+        state.lastAction = null;
+        render();
+      }
+    });
+
+    // Tab 切换（动画）
+    el.tabSeg.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button[data-tab]');
+      if(!btn) return;
+      el.tabSeg.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      switchPage(tab === 'todo' ? el.pageTodo : el.pageDone);
+    });
+    function switchPage(targetPage){
+      [el.pageTodo, el.pageDone].forEach(p => p.classList.remove('active'));
+      targetPage.classList.add('active');
+    }
+    function renderWithFade(){
+      const active = activePage();
+      active.classList.remove('active');
+      void active.offsetWidth; // reflow
+      active.classList.add('active');
+      render();
+    }
+
+    // 方向切换
+    el.oriSeg.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button[data-ori]');
+      if(!btn) return;
+      el.oriSeg.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const ori = btn.dataset.ori;
+      state.orientation = ori;
+      el.stage.classList.toggle('landscape', ori==='landscape');
+      el.stage.classList.toggle('portrait', ori!=='landscape');
+      saveState();
+      render();
+    });
+
+    // 填满空白线开关
+    el.fillBlanksToggle.addEventListener('change', ()=>{
+      state.fillBlanks = el.fillBlanksToggle.checked; render();
+    });
+
+    // 主题
+    el.themeToggle.addEventListener('change', ()=>{
+      state.theme = el.themeToggle.checked ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', state.theme==='dark'?'dark':'light');
+      saveState();
+    });
+
+    // 分类新增
+    function bindAddCat(btn, input){
+      btn.addEventListener('click', ()=>{
+        input.style.display = input.style.display==='none' ? '' : 'none';
+        if(input.style.display!=='none'){ input.focus(); }
+      });
+      input.addEventListener('keydown', (e)=>{
+        if(e.key==='Enter'){
+          const v = (input.value||'').trim();
+          if(!v) return;
+          if(!state.categories.includes(v)) state.categories.push(v);
+          input.value=''; input.style.display='none';
+          saveState(); render();
+        }else if(e.key==='Escape'){
+          input.value=''; input.style.display='none';
+        }
+      });
+      input.addEventListener('blur', ()=>{ input.value=''; input.style.display='none'; });
+    }
+    bindAddCat(el.addCatBtn, el.addCatInput);
+    bindAddCat(el.addCatBtnDone, el.addCatInputDone);
+
+    // 排序控件
+    el.sortField.addEventListener('change', ()=>{
+      state.sortTodo.field = el.sortField.value;
+      saveState(); render();
+    });
+    el.sortDir.addEventListener('click', ()=>{
+      state.sortTodo.dir = (state.sortTodo.dir==='asc' ? 'desc' : 'asc');
+      render();
+    });
+    el.sortFieldDone.addEventListener('change', ()=>{
+      state.sortDone.field = el.sortFieldDone.value;
+      saveState(); render();
+    });
+    el.sortDirDone.addEventListener('click', ()=>{
+      state.sortDone.dir = (state.sortDone.dir==='asc' ? 'desc' : 'asc');
+      render();
+    });
+
+    // 导出 PNG（等待字体加载）
+    el.exportPNG.addEventListener('click', async ()=>{
+      const filename = buildFileName('png');
+      await document.fonts?.ready;
+      const canvas = await html2canvas(el.stage, { backgroundColor: getComputedStyle(el.stage).backgroundColor || '#fff', scale: 2, useCORS: true });
+      const data = canvas.toDataURL('image/png', 1.0);
+      const a = document.createElement('a');
+      a.href = data; a.download = filename; a.click();
+    });
+
+    // 导出 PDF
+    el.exportPDF.addEventListener('click', async ()=>{
+      await document.fonts?.ready;
+      const { jsPDF } = window.jspdf;
+      const orientation = state.orientation==='landscape' ? 'landscape' : 'portrait';
+      const pdf = new jsPDF({ orientation, unit:'mm', format:'a4', compress: true });
+
+      const canvas = await html2canvas(el.stage, { backgroundColor: getComputedStyle(el.stage).backgroundColor || '#fff', scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW;
+      const imgH = canvas.height * (imgW / canvas.width);
+      const pagePxH = Math.floor(canvas.width * (pageH / pageW));
+
+      if(imgH <= pageH){
+        pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH);
+      }else{
+        let y = 0; let idx = 0;
+        while (y < canvas.height){
+          const sliceH = Math.min(pagePxH, canvas.height - y);
+          const slice = document.createElement('canvas');
+          slice.width = canvas.width; slice.height = sliceH;
+          const sctx = slice.getContext('2d');
+          sctx.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+          const sliceData = slice.toDataURL('image/jpeg', 1.0);
+          if(idx>0) pdf.addPage();
+          pdf.addImage(sliceData, 'JPEG', 0, 0, imgW, pageH);
+          y += sliceH; idx++;
+        }
+      }
+      pdf.save(buildFileName('pdf'));
+    });
+
+    // 打印
+    el.printPage.addEventListener('click', ()=> window.print());
+
+    // 导出/导入数据
+    el.exportData.addEventListener('click', ()=>{
+      const data = JSON.stringify({ version: 2, exportedAt: Date.now(), state }, null, 2);
+      const blob = new Blob([data], {type:'application/json;charset=utf-8'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `a4todo-backup-${tsForFile(new Date())}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    el.importData.addEventListener('change', async ()=>{
+      const f = el.importData.files[0];
+      if(!f) return;
+      try{
+        const text = await f.text();
+        const obj = JSON.parse(text);
+        if(!obj || !obj.state){ alert('文件格式不正确'); return; }
+        state = normalizeState(obj.state);
+        document.documentElement.setAttribute('data-theme', state.theme==='dark'?'dark':'light');
+        el.themeToggle.checked = state.theme==='dark';
+        el.fillBlanksToggle.checked = !!state.fillBlanks;
+        el.stage.classList.toggle('landscape', state.orientation==='landscape');
+        el.stage.classList.toggle('portrait', state.orientation!=='landscape');
+        render();
+        alert('导入成功！');
+      }catch(err){
+        console.error(err);
+        alert('导入失败，请确认文件是否为导出的 JSON。');
+      }finally{
+        el.importData.value = '';
+      }
+    });
+
+    function activePage(){
+      const tabTodoActive = el.tabSeg.querySelector('[data-tab="todo"]').classList.contains('active');
+      return tabTodoActive ? el.pageTodo : el.pageDone;
+    }
+    function buildFileName(ext){
+      const which = activePage()===el.pageTodo ? '待办' : '已完成';
+      return `A4-${which}-${tsForFile(new Date())}.${ext}`;
+    }
+    function tsForFile(d){
+      const p = n => String(n).padStart(2,'0');
+      return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+    }
+    function uid(){ return 't_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+    function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function loadState(){ try{ const s=localStorage.getItem(STORAGE_KEY); return s?JSON.parse(s):null; }catch(e){ return null; } }
+    function selectContent(el){ const r=document.createRange(); r.selectNodeContents(el); const s=window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+    function normalizeState(s){
+      s.orientation = s.orientation || 'portrait';
+      s.theme = s.theme || 'light';
+      s.fillBlanks = s.fillBlanks ?? true;
+      s.categories = s.categories || ['工作','生活','学习'];
+      s.filters = s.filters || { category: 'all' };
+      s.sortTodo = s.sortTodo || { field:'manual', dir:'desc' };
+      s.sortDone = s.sortDone || { field:'manual', dir:'desc' };
+      s.counters = s.counters || { order: 0, orderDone: 0 };
+      s.tasks = (s.tasks||[]).map((t,i)=>({
+        id: t.id || uid(),
+        text: t.text || '',
+        done: false,
+        createdAt: t.createdAt || Date.now(),
+        dueDate: t.dueDate || null,
+        priority: t.priority || 2,
+        category: t.category || '',
+        order: (typeof t.order==='number') ? t.order : i
+      }));
+      s.completed = (s.completed||[]).map((t,i)=>({
+        id: t.id || uid(),
+        text: t.text || '',
+        done: true,
+        createdAt: t.createdAt || Date.now(),
+        completedAt: t.completedAt || Date.now(),
+        dueDate: t.dueDate || null,
+        priority: t.priority || 2,
+        category: t.category || '',
+        order: (typeof t.order==='number') ? t.order : i
+      }));
+      s.counters.order = Math.max(s.counters.order, s.tasks.reduce((m,t)=>Math.max(m, t.order||0), 0));
+      s.counters.orderDone = Math.max(s.counters.orderDone, s.completed.reduce((m,t)=>Math.max(m, t.order||0), 0));
+      return s;
+    }
+
+    // 初次渲染
+    render();
+  </script>
 </body>
 </html>
