@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>待办事项清单</title>
+  <title>待办事项</title>
   <style>
     :root{
       /* 高级中文 UI 字体栈（可按需替换顺序） */
@@ -29,7 +29,7 @@
       --tick-size-mm: 7mm;      /* 勾选方框 7mm */
       --line-thin-mm: .3mm;     /* 格式线 */
 
-      color-scheme: light dark;
+      color-scheme: light dark; /* 让原生控件跟随深浅色 */
     }
     [data-theme="dark"]{
       --paper: #111827;
@@ -65,28 +65,34 @@
       text-rendering: optimizeLegibility;
     }
 
-    /* 顶部工具条（单行、可横向滚动） */
+    /* 顶部工具条 */
     .topbar{ position: sticky; top:0; z-index: 30;
       backdrop-filter: saturate(1.2) blur(8px);
       background: color-mix(in srgb, var(--bg) 85%, transparent);
       border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent);
     }
     .topbar-inner{
-      max-width: 1200px; margin: 0 auto; padding: 10px 16px;
-      display: flex; align-items: center; gap: 12px;
-      flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain;
-      scrollbar-width: none;
-    }
-    .topbar-inner::-webkit-scrollbar{ display: none; }
-    .brand{ display:flex; align-items:center; gap:10px; padding-right: 6px; font-weight: 800; letter-spacing:.2px; flex: 0 0 auto; }
+  max-width: 1200px; margin: 0 auto; padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: nowrap;              /* 不换行 */
+  overflow-x: auto;               /* 超出横向滚动 */
+  overscroll-behavior-x: contain; /* 减少误触滚动回弹 */
+  scrollbar-width: none;          /* 火狐隐藏滚动条 */
+}
+.topbar-inner::-webkit-scrollbar{ display: none; } /* WebKit 隐藏滚动条 */
+    .brand{ display:flex; align-items:center; gap:10px; padding-right: 10px; font-weight: 800; letter-spacing:.2px; }
     .brand .logo{
       width: 28px; height: 28px; border-radius: 8px; display:grid; place-content:center; color:#fff;
       background: linear-gradient(135deg, var(--brand-1), var(--accent)); box-shadow: var(--shadow);
       font-size: 16px;
     }
 
-    /* 控件/按钮/芯片/下拉 */
-    .seg{ display: inline-flex; border-radius: 999px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--line) 35%, transparent); background: var(--card); box-shadow: var(--shadow); flex: 0 0 auto; }
+    /* 统一把“控件/按钮/芯片/下拉”等也使用高级字体栈（与正文一致） */
+    .btn, .seg button, .chip, .chip-toggle, .toggle-dir, .select, .select-inline, .select-pill, label.file, .action-link {
+      font-family: var(--ff-ui) !important;
+    }
+
+    .seg{ display: inline-flex; border-radius: 999px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--line) 35%, transparent); background: var(--card); box-shadow: var(--shadow); }
     .seg button{
       appearance:none; border:0; background:transparent; padding:8px 12px; color:var(--paper-ink); font-weight:600; cursor:pointer;
       transition: .2s ease background, .2s ease color;
@@ -95,12 +101,12 @@
     .seg button:hover{ background: color-mix(in srgb, var(--brand-1) 8%, transparent); }
     .chip{
       display:inline-flex; align-items:center; gap:8px; border:1px solid color-mix(in srgb, var(--line) 35%, transparent);
-      background: var(--card); padding:6px 10px; border-radius: 999px; box-shadow: var(--shadow); white-space: nowrap; color: var(--paper-ink); flex: 0 0 auto;
+      background: var(--card); padding:6px 10px; border-radius: 999px; box-shadow: var(--shadow); white-space: nowrap; color: var(--paper-ink);
     }
     .btn{
       appearance:none; border:1px solid color-mix(in srgb, var(--line) 35%, transparent);
       padding:8px 12px; border-radius:10px; background: var(--card); color: var(--paper-ink);
-      font-weight: 600; cursor:pointer; transition:.2s ease transform, .2s ease background; box-shadow: var(--shadow); flex: 0 0 auto;
+      font-weight: 600; cursor:pointer; transition:.2s ease transform, .2s ease background; box-shadow: var(--shadow);
     }
     .btn:hover{ transform: translateY(-1px); }
     .btn.primary{ border-color:transparent; background: linear-gradient(135deg, var(--brand-1), var(--accent)); color:#fff; }
@@ -109,23 +115,14 @@
     label.file{ position:relative; overflow:hidden; }
     label.file input{ position:absolute; inset:0; opacity:0; cursor: pointer; }
 
-    .divider{ width:1px; height:26px; background: color-mix(in srgb, var(--line) 35%, transparent); flex: 0 0 auto; }
+    .divider{ width:1px; height:26px; background: color-mix(in srgb, var(--line) 35%, transparent); }
     .spacer{ flex:1; }
 
-    main{ padding: 12px; }
+    main{ padding: 18px; }
     .wrap{ max-width: 1200px; margin: 0 auto; }
 
-    /* 舞台外壳（用于缩放，适配移动端） */
-    .paper-wrap{ display:block; }
-    .stage-outer{ width: 100%; max-width: 100%; margin: 0 auto; position: relative; }
-    .stage-scale{ transform-origin: top left; }
-    /* 打印时取消缩放壳 */
-    @media print{
-      .stage-scale{ transform: none !important; width: auto !important; height: auto !important; }
-      .stage-outer{ height: auto !important; }
-    }
-
-    /* A4 舞台（固定 mm 尺寸，导出/打印的基准） */
+    /* A4 舞台（容器） */
+    .paper-wrap{ display:grid; place-content:center; }
     .a4-stage{
       position: relative;
       width: 210mm; height: 297mm; /* 竖向 */
@@ -155,7 +152,6 @@
     }
     .paper-head{
       display:flex; align-items:flex-end; justify-content: space-between; gap:12px; margin-bottom: 8mm;
-      flex-wrap: wrap;
     }
     .paper-head h1{ margin:0; font-size: 22px; letter-spacing:.2px; font-weight: 700; color: var(--paper-ink); }
     .muted{ color: var(--muted-ink); font-size: 12px; }
@@ -163,6 +159,15 @@
 
     /* 筛选与排序 */
     .filters{ display:flex; align-items:center; gap:10px; flex-wrap: wrap; margin: 2mm 0 4mm; }
+    .chips.manage .chip-toggle .del{
+  display: inline-flex;
+}
+.chip-toggle .del{
+  display: none; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-left: 6px; border-radius: 50%;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger); font-weight: 800; line-height: 1;
+}
     .chips{ display:flex; gap:6px; flex-wrap: wrap; }
     .chip-toggle{
       padding: 4px 10px; border-radius: 999px; border:1px solid color-mix(in srgb, var(--line) 35%, transparent); background: var(--card);
@@ -175,15 +180,16 @@
     .select{
       appearance:none; padding:6px 26px 6px 10px; border-radius:10px; border:1px solid color-mix(in srgb, var(--line) 60%, transparent); background-color: var(--paper); color: var(--paper-ink); cursor:pointer;
       background-repeat:no-repeat; background-position: right 8px center; background-size: 14px;
+      /* 浅色下拉箭头 */
       background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="%23475569"><path d="M7 10l5 5 5-5z"/></svg>');
-      flex: 0 0 auto;
     }
+    /* 深色下拉箭头 */
     [data-theme="dark"] .select{
       background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="%23cbd5e1"><path d="M7 10l5 5 5-5z"/></svg>');
     }
     .toggle-dir{ padding:6px 10px; border-radius:10px; border:1px solid color-mix(in srgb, var(--line) 60%, transparent); background: var(--paper); cursor:pointer; color: var(--paper-ink); }
 
-    /* 快速添加 */
+    /* 快速添加区 */
     .quick-add{ display:flex; align-items:center; gap:8px; flex-wrap: wrap; justify-content: flex-end; }
     .input{
       background: var(--paper);
@@ -206,9 +212,8 @@
       will-change: transform;
     }
     .handle{
-      width: 6mm; height: var(--tick-size-mm); display:grid; place-content:center; color: var(--muted-ink);
+      width: 4mm; height: var(--tick-size-mm); display:grid; place-content:center; color: var(--muted-ink);
       user-select: none; cursor: grab; transform: translateY(.2mm);
-      touch-action: none; /* 移动端拖拽防止页面滚动 */
     }
     .handle.disabled{ opacity: .35; cursor: default; }
     .item.dragging{ opacity: .5; }
@@ -250,7 +255,6 @@
     .select-inline, .date-inline{
       padding: 2px 6px; border-radius: 8px; border:1px solid color-mix(in srgb, var(--line) 60%, transparent); background: var(--paper);
       color: var(--paper-ink); font-size: 12px;
-      flex: 0 0 auto;
     }
     .select-inline{
       padding-right: 22px; appearance:none;
@@ -287,36 +291,14 @@
     }
     body.dnd-active, body.dnd-active *{ cursor: grabbing !important; }
 
-    /* 分类管理：chips 容器进入管理态时，显示每个分类的删除按钮 */
-    .chips.manage .chip-toggle .del{ display: inline-flex; }
-    .chip-toggle .del{
-      display: none; align-items: center; justify-content: center;
-      width: 16px; height: 16px; margin-left: 6px; border-radius: 50%;
-      background: color-mix(in srgb, var(--danger) 15%, transparent);
-      color: var(--danger); font-weight: 800; line-height: 1;
-    }
+    footer .tips{ max-width: 1200px; margin: 12px auto 36px; padding: 8px 12px; color: var(--muted-ink); }
 
-    footer .tips{
-      max-width: 1200px; margin: 12px auto calc(36px + env(safe-area-inset-bottom, 0));
-      padding: 8px 12px; color: var(--muted-ink);
-    }
-
-    /* 打印优化 */
     @media print{
       body{ background:#fff; }
       .topbar, footer{ display:none !important; }
       .paper-wrap{ display:block; }
       .a4-stage{ box-shadow: none; border-radius: 0; }
       .page-scroll{ overflow: visible; }
-    }
-
-    /* 小屏微调（控件更紧凑） */
-    @media (max-width: 600px){
-      .paper-head h1{ font-size: 18px; }
-      .seg button{ padding:6px 10px; }
-      .btn{ padding:6px 10px; }
-      .chip{ padding:5px 8px; }
-      .input{ min-width: 40mm; }
     }
   </style>
 
@@ -332,7 +314,7 @@
         <div>A4 待办清单</div>
       </div>
 
-      <!-- Tab：待办 / 已完成（切换有动画） -->
+      <!-- Tab：待办 / 已完成 -->
       <div class="seg" id="tabSeg">
         <button class="active" data-tab="todo">待办</button>
         <button data-tab="done">已完成</button>
@@ -340,7 +322,7 @@
 
       <div class="divider"></div>
 
-      <!-- 横向 / 竖向（动画） -->
+      <!-- 横向 / 竖向 -->
       <div class="seg" id="oriSeg" title="横向/竖向（带过渡动画）">
         <button class="active" data-ori="portrait">竖向</button>
         <button data-ori="landscape">横向</button>
@@ -369,7 +351,7 @@
         <button id="printPage" class="ghost">打印</button>
       </div>
 
-      <!-- 数据导入导出（与其它按钮同一行） -->
+      <!-- 数据导入导出 -->
       <span class="chip">
         <button id="exportData" class="btn">导出数据</button>
         <label class="file btn">
@@ -383,103 +365,97 @@
   <main>
     <div class="wrap">
       <div class="paper-wrap">
-        <!-- 自适应缩放外壳（仅用于移动端展示缩放，不影响导出/打印） -->
-        <div class="stage-outer" id="stageOuter">
-          <div class="stage-scale" id="stageScale">
-            <!-- 纸张舞台（A4 原始尺寸） -->
-            <div id="paperStage" class="a4-stage portrait">
-              <!-- 待办页面 -->
-              <section id="page-todo" class="page active">
-                <div class="page-scroll">
-                  <div class="paper-head">
-                    <div>
-                      <h1>待办事项</h1>
-                      <div class="stats">
-                        <span id="dateStr"></span>
-                        <span>｜待办 <b id="todoCount">0</b> 项</span>
-                      </div>
-                      <!-- 分类与排序控制 -->
-                      <div class="filters">
-                        <div class="chips" id="categoryChips"></div>
-                        <button id="addCatBtn" class="chip-toggle">＋ 分类</button>
-                        <button id="manageCatBtn" class="chip-toggle">管理分类</button>
-                        <input id="addCatInput" class="small-input" placeholder="新分类名，回车确认" style="display:none;" />
-                        <span class="divider" style="height:20px;"></span>
-                        <select id="sortField" class="select">
-                          <option value="manual">手动排序</option>
-                          <option value="createdAt">创建时间</option>
-                          <option value="dueDate">截止日期</option>
-                          <option value="priority">优先级</option>
-                        </select>
-                        <button id="sortDir" class="toggle-dir" title="升/降序切换">⬇︎ 降序</button>
-                      </div>
-                    </div>
-                    <!-- 快速添加 -->
-                    <div class="quick-add">
-                      <input id="quickInput" class="input" placeholder="快速添加待办（Enter 添加）" />
-                      <input id="quickDue" type="date" class="input-date" title="截止日期（可选）" />
-                      <select id="quickPri" class="select-pill" title="优先级">
-                        <option value="2">普通</option>
-                        <option value="1">低</option>
-                        <option value="3">高</option>
-                        <option value="4">紧急</option>
-                      </select>
-                      <select id="quickCat" class="select-pill" title="分类"></select>
-                      <button id="addBtn" class="btn primary">＋ 添加</button>
-                    </div>
+        <!-- 纸张舞台 -->
+        <div id="paperStage" class="a4-stage portrait">
+          <!-- 待办页面 -->
+          <section id="page-todo" class="page active">
+            <div class="page-scroll">
+              <div class="paper-head">
+                <div>
+                  <h1>待办事项</h1>
+                  <div class="stats">
+                    <span id="dateStr"></span>
+                    <span>｜待办 <b id="todoCount">0</b> 项</span>
                   </div>
-
-                  <div id="todoList" class="lines"></div>
-                  <div id="todoBlanks" class="lines blanks"></div>
-                </div>
-              </section>
-
-              <!-- 已完成页面 -->
-              <section id="page-done" class="page">
-                <div class="page-scroll">
-                  <div class="paper-head">
-                    <div>
-                      <h1>已完成</h1>
-                      <div class="stats">
-                        <span id="doneInfo">共 <b id="doneCount">0</b> 项</span>
-                      </div>
-                      <div class="filters">
-                        <div class="chips" id="categoryChipsDone"></div>
-                        <button id="addCatBtnDone" class="chip-toggle">＋ 分类</button>
-                        <button id="manageCatBtnDone" class="chip-toggle">管理分类</button>
-                        <input id="addCatInputDone" class="small-input" placeholder="新分类名，回车确认" style="display:none;" />
-                        <span class="divider" style="height:20px;"></span>
-                        <select id="sortFieldDone" class="select">
-                          <option value="manual">手动排序</option>
-                          <option value="createdAt">创建时间</option>
-                          <option value="dueDate">截止日期</option>
-                          <option value="priority">优先级</option>
-                          <option value="completedAt">完成时间</option>
-                        </select>
-                        <button id="sortDirDone" class="toggle-dir" title="升/降序切换">⬇︎ 降序</button>
-                      </div>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                      <button id="undoLast" class="btn">撤销最近</button>
-                      <button id="clearDone" class="btn danger">清空已完成</button>
-                    </div>
+                  <!-- 分类与排序控制 -->
+                  <div class="filters">
+                    <div class="chips" id="categoryChips"></div>
+                    <button id="addCatBtn" class="chip-toggle">＋ 分类</button>
+                    <button id="manageCatBtn" class="chip-toggle">管理分类</button>
+                    <input id="addCatInput" class="small-input" placeholder="新分类名，回车确认" style="display:none;" />
+                    <span class="divider" style="height:20px;"></span>
+                    <select id="sortField" class="select">
+                      <option value="manual">手动排序</option>
+                      <option value="createdAt">创建时间</option>
+                      <option value="dueDate">截止日期</option>
+                      <option value="priority">优先级</option>
+                    </select>
+                    <button id="sortDir" class="toggle-dir" title="升/降序切换">⬇︎ 降序</button>
                   </div>
-
-                  <div id="doneList" class="lines"></div>
-                  <div id="doneBlanks" class="lines blanks"></div>
                 </div>
-              </section>
+                <!-- 快速添加 -->
+                <div class="quick-add">
+                  <input id="quickInput" class="input" placeholder="快速添加待办（Enter 添加）" />
+                  <input id="quickDue" type="date" class="input-date" title="截止日期（可选）" />
+                  <select id="quickPri" class="select-pill" title="优先级">
+                    <option value="2">普通</option>
+                    <option value="1">低</option>
+                    <option value="3">高</option>
+                    <option value="4">紧急</option>
+                  </select>
+                  <select id="quickCat" class="select-pill" title="分类"></select>
+                  <button id="addBtn" class="btn primary">＋ 添加</button>
+                </div>
+              </div>
+
+              <div id="todoList" class="lines"></div>
+              <div id="todoBlanks" class="lines blanks"></div>
             </div>
-          </div>
+          </section>
+
+          <!-- 已完成页面 -->
+          <section id="page-done" class="page">
+            <div class="page-scroll">
+              <div class="paper-head">
+                <div>
+                  <h1>已完成</h1>
+                  <div class="stats">
+                    <span id="doneInfo">共 <b id="doneCount">0</b> 项</span>
+                  </div>
+                  <div class="filters">
+                    <div class="chips" id="categoryChipsDone"></div>
+                    <button id="addCatBtnDone" class="chip-toggle">＋ 分类</button>
+                    <button id="manageCatBtnDone" class="chip-toggle">管理分类</button>
+                    <input id="addCatInputDone" class="small-input" placeholder="新分类名，回车确认" style="display:none;" />
+                    <span class="divider" style="height:20px;"></span>
+                    <select id="sortFieldDone" class="select">
+                      <option value="manual">手动排序</option>
+                      <option value="createdAt">创建时间</option>
+                      <option value="dueDate">截止日期</option>
+                      <option value="priority">优先级</option>
+                      <option value="completedAt">完成时间</option>
+                    </select>
+                    <button id="sortDirDone" class="toggle-dir" title="升/降序切换">⬇︎ 降序</button>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button id="undoLast" class="btn">撤销最近</button>
+                  <button id="clearDone" class="btn danger">清空已完成</button>
+                </div>
+              </div>
+
+              <div id="doneList" class="lines"></div>
+              <div id="doneBlanks" class="lines blanks"></div>
+            </div>
+          </section>
         </div>
-        <!-- /stage-outer -->
       </div>
     </div>
   </main>
 
   <footer>
     <div class="tips">
-      系统版本：V0.2.5
+      系统版本：V0.2.4
     </div>
   </footer>
 
@@ -490,9 +466,6 @@
     // DOM refs
     const el = {
       stage: document.getElementById('paperStage'),
-      stageOuter: document.getElementById('stageOuter'),
-      stageScale: document.getElementById('stageScale'),
-
       pageTodo: document.getElementById('page-todo'),
       pageDone: document.getElementById('page-done'),
 
@@ -527,21 +500,34 @@
       categoryChips: document.getElementById('categoryChips'),
       addCatBtn: document.getElementById('addCatBtn'),
       addCatInput: document.getElementById('addCatInput'),
-      manageCatBtn: document.getElementById('manageCatBtn'),
 
       categoryChipsDone: document.getElementById('categoryChipsDone'),
       addCatBtnDone: document.getElementById('addCatBtnDone'),
       addCatInputDone: document.getElementById('addCatInputDone'),
-      manageCatBtnDone: document.getElementById('manageCatBtnDone'),
 
       sortField: document.getElementById('sortField'),
       sortDir: document.getElementById('sortDir'),
       sortFieldDone: document.getElementById('sortFieldDone'),
       sortDirDone: document.getElementById('sortDirDone'),
-    };
 
-    // UI 临时状态
-    let manageCats = false; // 分类管理开关
+      manageCatBtn: document.getElementById('manageCatBtn'),
+      manageCatBtnDone: document.getElementById('manageCatBtnDone'),
+    };
+    let manageCats = false; // 是否进入“管理分类”模式（显示删除按钮）
+    function updateManageButtons(){
+  [el.manageCatBtn, el.manageCatBtnDone].forEach(btn=>{
+    if(!btn) return;
+    btn.classList.toggle('active', manageCats);
+    btn.textContent = manageCats ? '完成管理' : '管理分类';
+  });
+}
+
+el.manageCatBtn?.addEventListener('click', ()=>{
+  manageCats = !manageCats; updateManageButtons(); render();
+});
+el.manageCatBtnDone?.addEventListener('click', ()=>{
+  manageCats = !manageCats; updateManageButtons(); render();
+});
 
     // Default state
     let state = normalizeState(loadState() || {
@@ -568,7 +554,7 @@
       const wk = ['日','一','二','三','四','五','六'][now.getDay()];
       return `今天：${fmtDateTime(now)}（周${wk}）`;
     }
-    el.dateStr.textContent = todayStr();
+    document.getElementById('dateStr').textContent = todayStr();
 
     // Apply theme & orientation
     document.documentElement.setAttribute('data-theme', state.theme === 'dark' ? 'dark' : 'light');
@@ -577,7 +563,7 @@
     el.fillBlanksToggle.checked = !!state.fillBlanks;
     el.themeToggle.checked = state.theme === 'dark';
 
-    // 渲染主流程
+    // Render
     function render(){
       buildCategoryChips(el.categoryChips);
       buildCategoryChips(el.categoryChipsDone);
@@ -615,58 +601,59 @@
 
       saveState();
       updateDueCountdowns();
-      applyResponsiveScale(); // 渲染完适配移动端缩放
     }
 
-    // 移动端缩放：按屏宽缩放预览，不影响导出/打印
-    function applyResponsiveScale(){
-      const outer = el.stageOuter;
-      const scaleWrap = el.stageScale;
-      if(!outer || !scaleWrap || !el.stage) return;
-      const stageW = el.stage.offsetWidth;
-      const stageH = el.stage.offsetHeight;
-      const innerPadding = 0; // px
-      const vw = Math.min(window.innerWidth, outer.clientWidth);
-      const scale = Math.min(1, (vw - innerPadding) / stageW);
-      scaleWrap.style.transform = `scale(${scale})`;
-      scaleWrap.style.width = stageW + 'px';
-      scaleWrap.style.height = stageH + 'px';
-      outer.style.height = (stageH * scale) + 'px';
-    }
-    window.addEventListener('resize', debounce(applyResponsiveScale, 100));
-    window.addEventListener('orientationchange', ()=> setTimeout(applyResponsiveScale, 200));
-
-    function debounce(fn, wait){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); }; }
-
-    // 分类 chips（含删除）
     function buildCategoryChips(container){
-      container.innerHTML = '';
-      container.classList.toggle('manage', manageCats);
-      const cats = ['全部', ...state.categories];
-      cats.forEach(c=>{
-        const chip = document.createElement('button');
-        const isActive = ((state.filters.category === 'all' && c==='全部') || (state.filters.category === c));
-        chip.className = 'chip-toggle' + (isActive ? ' active' : '');
-        chip.textContent = c;
-        chip.addEventListener('click', ()=>{
-          state.filters.category = (c === '全部' ? 'all' : c);
-          renderWithFade();
-        });
-        if(c !== '全部'){
-          const del = document.createElement('span');
-          del.className = 'del';
-          del.title = `删除分类「${c}」`;
-          del.textContent = '×';
-          del.addEventListener('click', (e)=>{
-            e.stopPropagation();
-            deleteCategory(c);
-          });
-          chip.appendChild(del);
-        }
-        container.appendChild(chip);
+  container.innerHTML = '';
+  container.classList.toggle('manage', manageCats); // chips 容器进入管理态，显示删除按钮
+  const cats = ['全部', ...state.categories];
+  cats.forEach(c=>{
+    const chip = document.createElement('button');
+    const isActive = ((state.filters.category === 'all' && c==='全部') || (state.filters.category === c));
+    chip.className = 'chip-toggle' + (isActive ? ' active' : '');
+    chip.textContent = c;
+
+    // 点击 chip：切换筛选
+    chip.addEventListener('click', ()=>{
+      state.filters.category = (c === '全部' ? 'all' : c);
+      renderWithFade();
+    });
+
+    // 非“全部”的分类，附加删除按钮（管理态下显示）
+    if(c !== '全部'){
+      const del = document.createElement('span');
+      del.className = 'del';   // 样式由 CSS 控制显示与否
+      del.title = `删除分类「${c}」`;
+      del.textContent = '×';
+      del.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        deleteCategory(c);
       });
-      updateManageButtons();
+      chip.appendChild(del);
     }
+
+    container.appendChild(chip);
+  });
+}
+    function deleteCategory(name){
+  if(!state.categories.includes(name)) return;
+  if(!confirm(`确认删除分类「${name}」吗？分类下任务不会被删除，将归为“未归类”。`)) return;
+
+  // 移除分类
+  state.categories = state.categories.filter(c => c !== name);
+
+  // 清理任务分类：仅置空，不删任务
+  state.tasks.forEach(t => { if(t.category === name) t.category = ''; });
+  state.completed.forEach(t => { if(t.category === name) t.category = ''; });
+
+  // 若当前筛选就是此分类，则切回“全部”
+  if(state.filters.category === name){
+    state.filters.category = 'all';
+  }
+
+  saveState();
+  render();
+}
     function buildQuickCat(){
       el.quickCat.innerHTML = '';
       const optAuto = document.createElement('option');
@@ -682,27 +669,6 @@
       if(cat==='all') return true;
       return (item.category || '') === cat;
     }
-    function deleteCategory(name){
-      if(!state.categories.includes(name)) return;
-      if(!confirm(`确认删除分类「${name}」吗？分类下任务不会被删除，将归为“未归类”。`)) return;
-      state.categories = state.categories.filter(c => c !== name);
-      state.tasks.forEach(t => { if(t.category === name) t.category = ''; });
-      state.completed.forEach(t => { if(t.category === name) t.category = ''; });
-      if(state.filters.category === name) state.filters.category = 'all';
-      saveState();
-      render();
-    }
-
-    // 分类管理开关
-    function updateManageButtons(){
-      [el.manageCatBtn, el.manageCatBtnDone].forEach(btn=>{
-        if(!btn) return;
-        btn.classList.toggle('active', manageCats);
-        btn.textContent = manageCats ? '完成管理' : '管理分类';
-      });
-    }
-    el.manageCatBtn?.addEventListener('click', ()=>{ manageCats = !manageCats; updateManageButtons(); render(); });
-    el.manageCatBtnDone?.addEventListener('click', ()=>{ manageCats = !manageCats; updateManageButtons(); render(); });
 
     // 排序
     function sortView(arr, sort){
@@ -724,6 +690,7 @@
       if(sort.dir==='desc') a.reverse();
       return a;
     }
+
     function updateHandleEnabled(listEl, enabled){
       listEl.querySelectorAll('.handle').forEach(h=>{
         h.classList.toggle('disabled', !enabled);
@@ -1005,8 +972,8 @@
         else{ applyNewOrder(state.completed, ids); }
         render();
       }
-      window.addEventListener('pointermove', onMove, {passive:false});
-      window.addEventListener('pointerup', onUp, {passive:true});
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
     }
     function positionProxy(el, x, y){ el.style.left = x + 'px'; el.style.top = y + 'px'; }
     function autoScroll(ctx, clientY){
@@ -1420,7 +1387,7 @@
       return s;
     }
 
-    // 初次渲染 + 初始缩放
+    // 初次渲染
     render();
   </script>
 </body>
